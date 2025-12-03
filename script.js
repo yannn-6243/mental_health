@@ -1,9 +1,10 @@
 // ========================================
 // API Configuration
 // ========================================
-const API_BASE_URL = 'https://mentalhealthtest-production.up.railway.app';
+// Ganti ke URL backend lokal jika menjalankan backend.py secara lokal
+const API_BASE_URL = 'http://localhost:5000';
 
-// Backend is deployed on Railway
+// Set true untuk menggunakan backend Python, false untuk localStorage saja
 const USE_BACKEND = true;
 
 // ========================================
@@ -83,23 +84,23 @@ window.addEventListener('resize', ()=>{
 const questions = [
   { text: "Saya merasa cemas tanpa alasan yang jelas.", reverse: false },
   { text: "Saya kesulitan tidur atau sering terbangun di malam hari.", reverse: false },
-  { text: "Saya merasa bersemangat menjalani hari.", reverse: true },
+  { text: "Saya merasa tidak bersemangat menjalani hari.", reverse: true },
   { text: "Saya kehilangan minat pada hal-hal yang biasanya saya sukai.", reverse: false },
-  { text: "Saya merasa tenang dan rileks.", reverse: true },
+  { text: "Saya merasa tidak tenang dan rileks.", reverse: true },
   { text: "Saya merasa tidak berharga atau gagal.", reverse: false },
   { text: "Saya mudah tersinggung atau marah.", reverse: false },
-  { text: "Saya merasa puas dengan diri saya.", reverse: true },
+  { text: "Saya merasa tidak puas dengan diri saya.", reverse: true },
   { text: "Saya merasa sedih atau hampa hampir setiap hari.", reverse: false },
-  { text: "Saya merasa percaya diri dan mampu menghadapi tantangan.", reverse: true },
+  { text: "Saya merasa tidak percaya diri dan mampu menghadapi tantangan.", reverse: true },
   { text: "Saya merasa lelah meskipun tidak banyak aktivitas.", reverse: false },
   { text: "Saya merasa terisolasi atau kesepian.", reverse: false },
-  { text: "Saya merasa optimis tentang masa depan.", reverse: true },
+  { text: "Saya merasa tidak optimis tentang masa depan.", reverse: true },
   { text: "Saya merasa sulit berkonsentrasi atau fokus.", reverse: false },
-  { text: "Saya merasa nyaman berada di sekitar orang lain.", reverse: true },
+  { text: "Saya merasa tidak nyaman berada di sekitar orang lain.", reverse: true },
   { text: "Saya merasa bersalah atau menyesal berlebihan.", reverse: false },
-  { text: "Saya merasa mampu mengelola stres dengan baik.", reverse: true },
+  { text: "Saya merasa tidak mampu mengelola stres dengan baik.", reverse: true },
   { text: "Saya merasa tidak punya harapan atau tujuan hidup.", reverse: false },
-  { text: "Saya merasa bangga atas pencapaian saya.", reverse: true },
+  { text: "Saya merasa tidak bangga atas pencapaian saya.", reverse: true },
   { text: "Saya merasa ingin menghindari interaksi sosial.", reverse: false }
 ];
 
@@ -240,40 +241,42 @@ async function finishTest(){
   }, 0);
   const maxScore = questions.length * 3;
 
-  // Classify using WASM or fallback
-  let cat = 'Error';
-  let advice = 'Skor tidak valid.';
-  let color = '#888888';
+  // Classify - always use JavaScript for reliability (WASM may not load on mobile)
+  let cat, advice, color;
+  
+  const t1 = Math.floor(maxScore * 0.25);
+  const t2 = Math.floor(maxScore * 0.50);
+  const t3 = Math.floor(maxScore * 0.75);
 
-  if(typeof classifyWasm === 'function'){
-    cat = classifyWasm(total, maxScore);
-  }else{
-    if(total < 0 || total > maxScore){
-      cat = 'Error'; advice = 'Skor tidak valid.'; color = '#888888';
-    } else if (total <= Math.floor(maxScore * 0.33)) {
-      cat = 'Baik'; advice = 'Pertahankan pola hidup sehat, teruskan refleksi diri.'; color = '#16a34a';
-    } else if (total <= Math.floor(maxScore * 0.66)) {
-      cat = 'Perlu Perhatian Ringan'; advice = 'Coba relaksasi, atur jadwal, dan cukup tidur.'; color = '#f59e0b';
-    } else {
-      cat = 'Disarankan Konsultasi'; advice = 'Pertimbangkan segera berkonsultasi dengan profesional.'; color = '#ef4444';
-    }
+  if (total < 0 || total > maxScore) {
+    cat = 'Error';
+    advice = 'Skor tidak valid.';
+    color = '#888888';
+  } else if (total <= t1) {
+    cat = 'Baik / Kondisi Stabil';
+    advice = 'Pertahankan pola hidup sehat, teruskan refleksi diri.';
+    color = '#16a34a';
+  } else if (total <= t2) {
+    cat = 'Perlu Perhatian Diri';
+    advice = 'Coba relaksasi, atur jadwal, dan cukup tidur.';
+    color = '#f59e0b';
+  } else if (total <= t3) {
+    cat = 'Butuh Konsultasi Ringan';
+    advice = 'Pertimbangkan konsultasi ringan dengan teman atau konselor.';
+    color = '#f97316';
+  } else {
+    cat = 'Butuh Konsultasi Profesional';
+    advice = 'Pertimbangkan segera berkonsultasi dengan profesional kesehatan mental.';
+    color = '#ef4444';
   }
-
-  const map = {
-    'Baik': { advice: 'Pertahankan pola hidup sehat, teruskan refleksi diri.', color: '#16a34a' },
-    'Perlu Perhatian Ringan': { advice: 'Coba relaksasi, atur jadwal, dan cukup tidur.', color: '#f59e0b' },
-    'Disarankan Konsultasi': { advice: 'Pertimbangkan segera berkonsultasi dengan profesional.', color: '#ef4444' },
-    'Error': { advice: 'Skor tidak valid.', color: '#888888' }
-  };
-  const picked = map[cat] || { advice, color };
 
   // Show result
   document.getElementById('resName').textContent = nameInput.value.trim() || '-';
   document.getElementById('resScore').textContent = total;
   const catEl = document.getElementById('resCategory');
   catEl.textContent = cat;
-  catEl.style.color = picked.color;
-  document.getElementById('resAdvice').textContent = picked.advice;
+  catEl.style.color = color;
+  document.getElementById('resAdvice').textContent = advice;
 
   // Save to backend or localStorage
   const historyItem = {
